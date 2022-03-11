@@ -1,0 +1,295 @@
+html,
+body {
+	font-family: Dotum, 'droid sans fallback', 'AppleGothic', sans-serif;
+	font-size: 12pt;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	color: #333;
+}
+
+h2 {
+	margin-left: -10px;
+	font-weight: 900;
+	color: #555;
+	margin-top: 10px;
+	font-size: 30pt;
+	
+}
+
+a { text-decoration: none; color: #fff;}
+a:visited { text-decoration: none; }
+a:hover { text-decoration: none; }
+a:focus { text-decoration: none; }
+a:hover, a:active { text-decoration: none; }
+
+
+input {
+	border-radius: 5px;
+	border: 1px solid #aaa;
+	height: 24px;
+	width: 143px;
+	padding: 0 8px 0 8px;
+}
+
+select {
+	height: 28px;
+	border-radius: 5px;
+	border: 1px solid #aaa;
+	padding: 0 3px 0 3px;
+	min-width: 160px;
+}
+
+
+
+button {
+	border-radius: 5px;
+	border: 1px solid #aaa;
+	background-color: #eee;
+	width: 150px;
+	height: 30px;
+	cursor: pointer;
+}
+
+button:disabled,:hover:disabled {
+	background-color: #f3f3f3;
+	color: #ccc;
+	border: 1px solid #ccc;
+}
+
+
+button:hover {
+	background-color: #bbb;
+}
+
+
+
+.layout-outter {
+	width: 100%;
+	text-align: center;
+}
+
+.layout-contents {
+	width: 100%; max-width: 320px; text-align: left; display: inline-block; margin-top: 10px;
+}
+
+.form {
+	margin: 10px 0 0 0;
+	clear: both;
+}
+
+.label {
+	width: 90px;
+	text-align: right;
+	margin: 5px 5px 0 0;
+	display: inline-block;
+}
+
+.label-option-name {
+	font-size: 10pt;
+	font-weight: bold;
+	display: inline-block;
+	text-align: right;
+	margin: 0px 5px 0 0;
+}
+
+
+
+.sig-1 {
+	background: red;
+}
+
+.sig-2 {
+	background: #ffb700;
+}
+
+.sig-3 {
+	background: #1dd900;
+}
+
+.sig-4 {
+	background: #00a2ff;
+}
+
+.sig-0 {
+	background: #cfcfcf;
+}
+
+
+.layout-loading {
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	opacity: .5;
+	background: #222
+}
+
+#text-loading {
+	position: fixed;
+	width: 100%;
+	text-align: center;
+	top: 45%;
+	font-size: 32pt;
+	color: white
+}
+
+.result {
+	margin: 30px 10px 10px 10px;
+	font-weight: bold;
+}
+
+.result.success {
+	color: #33aa00;
+	
+}
+
+.error-msg {
+	color: #ff4411;
+	font-size: 10pt;
+	word-break:break-all;
+}
+
+.result.fail {
+	color: #ff4411;
+}
+
+.wifi-item {
+	height: 35px;
+	width: 100%;
+	border-bottom: 1px #ccc solid;
+	border-right: 1px #ccc solid;
+	border-left: 1px #ccc solid;
+	padding-top: 10px;
+
+	position: relative;
+}
+.wifi-item.top {
+	border-radius: 5px 5px 0 0;
+	border-top: 1px #ccc solid;
+}
+
+.wifi-item.bottom {
+	border-radius: 0 0 5px 5px;
+}
+.wifi-item.select {
+	background: #ddd
+}
+
+.wifi-rssi {
+	width: 50px;
+    font-size: 7pt;
+    font-weight: bold;
+    position: relative;
+    display: inline;
+}
+
+.wifi-ssid {
+	font-size: 10pt;
+	display: inline-block;
+	font-weight: bold
+}
+
+.wifi-type {
+	margin-left: 8px;
+	display: inline-block;
+	font-size: 8pt;
+	color: gray
+}
+
+.item-text {
+	position: absolute;
+	left: 45px;
+}
+
+
+.signal-strength {
+  height: 20px;
+  width: 50px;
+  position: absolute;
+  left: -30px;
+  top: -10px;
+  overflow: hidden;
+}
+.signal-strength li {
+  display: inline-block;
+  width: 5px;
+  float: left;
+  height: 100%;
+  margin-right: 1px;
+}
+.signal-strength li.pretty-strong {
+  padding-top: 0px;
+}
+.signal-strength li.strong {
+  padding-top: 5px;
+}
+.signal-strength li.weak {
+  padding-top: 10px;
+}
+.signal-strength li.very-weak {
+  padding-top: 15px;
+  
+}
+.signal-strength li div {
+  height: 100%; 
+}
+
+.step {
+	float: left;
+	padding: 5px 8px 5px 8px;
+	height: 15px;	
+	margin: 2px 2px 10px 2px;
+	font-size: 10pt;
+	text-align: center;
+	border-radius: 3px;
+	color: #777;
+	font-weight: bold;
+	background-color: #f0f0f0;
+	cursor: pointer;
+	
+}
+.step.comp {
+	text-decoration: underline;
+	color: #fff;
+	/*background-color: #62AEB2;*/
+	background-color: #4aa8d8;
+}
+
+.step.curr {
+	color: #fff;
+	/*background-color: teal;*/
+	background-color: #0067a3;
+}
+
+.step-arrow { 
+	float: left;
+	font-size: 8pt;
+	margin-top: 10px;
+	color: #aaa;
+}
+
+.step-arrow.comp { 
+	color: #72b6d8;
+	font-weight: bold;
+}
+
+
+.info-line {
+	margin: 0 0 5px 0;
+}
+
+.config-name{ 
+	font-weight: bold;
+	font-size: 10pt;
+	display: inline-block;
+	color: #666;
+}
+
+.config-value {
+	display: inline-block;
+	margin: 0 0 0 5px;
+	font-size: 10pt;
+	font-weight: bold;	
+}

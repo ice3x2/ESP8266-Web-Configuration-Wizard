@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang='en'>
+   <head>
+      <meta charset='UTF-8'>
+      <meta name='viewport' content='width=device-width, user-scalable=no'>
+      <link rel='stylesheet' type='text/css' href='css/main.css'/>
+      <script type="text/javascript" charset="utf-8" src="js/env.js"></script>
+      <script type='text/javascript' charset='utf-8' src='js/ajax.js'></script>
+       <script type='text/javascript' charset='utf-8' src='js/app.js'></script> 
+       <title>Configuration Wizard</title>
+   </head>
+   <body onload="MqttConfig.init()">
+    <div class="layout-outter">
+		<div class="layout-contents">
+            <div style="width: 100%; margin-left: -10px;" >
+                <div class="step comp"><a href='wifi.html'>Wifi</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step comp"><a href='time.html'>Time</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step curr ">Mqtt</div>
+                <div class="step-arrow">▷</div>
+                <div class="step">Options</div>
+                <div class="step-arrow">▷</div>
+                <div class="step">Finish</div>
+            </div>
+            <h2>MQTT Connection</h2>
+                    <div class="form"><span class="label">Address: </span><input type='text' id='input-mqtt-addr' /></div>
+                    <div class="form"><span class="label">Port: </span><input type='number' id='input-mqtt-port' /></div>
+                    <div class="form"><span class="label">ClientID: </span><input type='text' id='input-mqtt-clientid' /></div>
+                    <div class="form"><span class="label">User: </span><input type='text' id='input-mqtt-user' /></div>
+                    <div class="form"><span class="label">Password: </span><input type='password' id='input-mqtt-pass' /></div>
+                    <div id="setmqtt-result" class="result"></div>
+                    <div class="layout-outter" style="margin-top: 50px;">
+                        <button   id="btn-commit" style="width: 49%;"  >Submit</button>
+                        <button   id="btn-next" style="width: 49%;">Next</button>
+                    </div>
+                
+            <br/><br/><br/>
+            <div class='layout-loading' id='wifi-loading'>
+                <div id='text-loading'>Loading...</div>
+            </div>
+        </div>
+    </div>
+   </body>
+</html>

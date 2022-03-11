@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang='en'>
+   <head>
+      <meta charset='UTF-8'>
+      <meta name='viewport' content='width=device-width, user-scalable=no'>
+      <link rel='stylesheet' type='text/css' href='css/main.css'/>
+      <script type="text/javascript" charset="utf-8" src="js/env.js"></script>
+      <script type='text/javascript' charset='utf-8' src='js/ajax.js'></script>
+       <script type='text/javascript' charset='utf-8' src='js/app.js'></script> 
+       <title>Configuration Wizard</title>
+ </script>
+   </head>
+   <body onload="OptionConfig.init()">
+   
+    <div class="layout-outter">
+		<div class="layout-contents">
+            <div style="width: 100%; margin-left: -10px;" >
+                <div class="step comp"><a href='wifi.html'>Wifi</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step comp"><a href='time.html'>Time</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step comp "><a href='mqtt.html'>Mqtt</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step curr">Options</div>
+                <div class="step-arrow">▷</div>
+                <div class="step">Finish</div>
+            </div>
+            <h2>Options</h2>
+                
+                    <div id='options'>
+                        <!-- <div class="form"><span>Device name: </span><input type='text' id='input-' /></div> -->
+                    </div>
+                    <div class="result"></div>
+                    <div class="layout-outter" style="margin-top: 50px;">
+                        <button id="btn-commit" style="width: 49%;"  >Submit</button>
+                        <button id="btn-next" style="width: 49%;">Next</button>
+                    </div>
+                
+            <br/><br/><br/>
+            <div class='layout-loading' id='wifi-loading'>
+                <div id='text-loading'>Loading...</div>
+            </div>
+            
+
+
+        </div>
+    </div>
+   </body>
+</html>

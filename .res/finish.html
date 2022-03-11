@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang='en'>
+   <head>
+      <meta charset='UTF-8'>
+      <meta name='viewport' content='width=device-width, user-scalable=no'>
+      <link rel='stylesheet' type='text/css' href='css/main.css'/>
+      
+      <title>Configuration Wizard</title>
+   </head>
+   <body onload="FinishView.init()">
+   
+    <div class="layout-outter">
+		<div class="layout-contents">
+            <div style="width: 100%; margin-left: -10px;" >
+                <div class="step comp"><a href='wifi.html'>Wifi</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step comp"><a href='time.html'>Time</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step comp "><a href='mqtt.html'>Mqtt</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step comp"><a href='option.html'>Options</a></div>
+                <div class="step-arrow comp">▶</div>
+                <div class="step curr">Finish</div>
+            </div>
+            <h2>Configuration Complete</h2>
+            <div>
+                <div id="config-info">
+                    <div class='info-line'><div class="config-name">.</span><span class="config-value">.</span></div>
+                </div>
+            </div>
+                
+            
+            <div id="setmqtt-result" class="result"></div>
+            <div class="layout-outter" style="margin-top: 50px;">
+                <button   id="btn-commit" style="width: 49%;"  >OK</button>
+                <button   id="btn-next" style="width: 49%;display:  none;">Next</button>
+            </div>
+            <div class='layout-loading' id='wifi-loading' >
+                <div id='text-loading'>Loading...</div>
+            </div>
+            
+
+        </div>
+    </div>
+   </body>
+   <script type="text/javascript" charset="utf-8" src="js/env.js"></script>
+      <script type='text/javascript' charset='utf-8' src='js/ajax.js'></script>
+      <script type='text/javascript' charset='utf-8' src='js/app.js'></script> 
+</html>
