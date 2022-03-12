@@ -91,7 +91,7 @@ class ESP8266ConfigurationWizard {
     bool availableWifi();
     bool availableNTP();
     bool availableMqtt();
-    void connect();
+    void d);
     void startConfigurationMode();
     bool isConfigurationMode();
     PubSubClient* pubSubClient();
@@ -204,9 +204,9 @@ bool ESP8266ConfigurationWizard::availableWifi() {
 
 
 void ESP8266ConfigurationWizard::connect() {
-  loadConfigOptions();
+  loadConfig();
   if(!_availableConfigFile) {
-    setup();
+    startConfigurationMode();
     return;
   }
   releaseWebServer();
@@ -320,22 +320,27 @@ void ESP8266ConfigurationWizard::loop() {
 
 
 int ESP8266ConfigurationWizard::getHours() {
+  if(_ntpClient == NULL) return -1;
   return _ntpClient->getHours();
 }
 
 int ESP8266ConfigurationWizard::getMinutes() {
+  if(_ntpClient == NULL) return -1;
   return _ntpClient->getMinutes();
 }
 
 int ESP8266ConfigurationWizard::getSeconds() {
+  if(_ntpClient == NULL) return -1;
   return _ntpClient->getSeconds();
 }
 
 int ESP8266ConfigurationWizard::getDay() {
+ if(_ntpClient == NULL) return -1;
   return _ntpClient->getDay();
 }
 
 unsigned long ESP8266ConfigurationWizard::getEpochTime() {
+  if(_ntpClient == NULL) return -1;
   return _ntpClient->getEpochTime();
 }
 
@@ -883,7 +888,7 @@ bool ESP8266ConfigurationWizard::saveConfig() {
 
     bool ESP8266ConfigurationWizard::saveConfigOptions() {
       
-
+	Serial.println("sAVE");
       LittleFS.remove(OLD_OPTIONS_FILENAME);
       LittleFS.remove(OPTIONS_FILENAME);
       File optionsFile = LittleFS.open(OPTIONS_FILENAME, "w");
@@ -913,7 +918,7 @@ bool ESP8266ConfigurationWizard::saveConfig() {
          Serial.println("An Error has occurred while mounting LittleFS");
          return false;
       }*/
-      Serial.println('Load options file');
+      Serial.println("Load options file");
       Serial.println(OPTIONS_FILENAME);
       File optionsFile = LittleFS.open(OPTIONS_FILENAME, "r");
       if (!optionsFile) {
@@ -968,17 +973,17 @@ bool ESP8266ConfigurationWizard::saveConfig() {
          Serial.println("An Error has occurred while mounting LittleFS");
          return false;
       }
-      Serial.println('Load file');
+      Serial.println("Load file");
       Serial.println(CONFIG_FILENAME);
-      File configFile = LittleFS.open(CONFIG_FILENAME, "r");
-      if (!configFile) {
+	  File configFile = LittleFS.open(CONFIG_FILENAME, "r");
+	  if (!configFile) {
         Serial.println("Failed to open config file");
         _availableConfigFile = false;
         LittleFS.end();
         return false;
       }
-      size_t size = configFile.size();
-      if (size > CONFIG_FILE_SIZE) {
+	  size_t size = configFile.size();
+	  if (size > CONFIG_FILE_SIZE) {
         Serial.println("Config file size is too large");
         _availableConfigFile = false;
         LittleFS.end();
@@ -987,6 +992,7 @@ bool ESP8266ConfigurationWizard::saveConfig() {
       //std::unique_ptr<char[]> buf(new char[size]);
       //configFile.readBytes(buf.get(), size);
 
+		Serial.println("Load file -5");
       DynamicJsonDocument doc(CONFIG_FILE_SIZE);
 
       //Serial.println(buf.get());
@@ -1018,7 +1024,7 @@ bool ESP8266ConfigurationWizard::saveConfig() {
 
        configFile.close();
       _availableConfigFile = true;
-      loadConfig();
+      loadConfigOptions();
       LittleFS.end();
       return true;
     }
