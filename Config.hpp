@@ -60,6 +60,7 @@ class Config {
     const char* getMQTTPassword();
     UserOption* addOption(String name, String defaultValue,bool isNull);
     bool setOptionValue(String name, String value);
+    const char* getOption(String name);
     int getOptionCount() const;
     void beginOption() const;
     UserOption* nextOption() const;
@@ -374,6 +375,13 @@ void Config::clearOptions() {
     _userOptionList->Clear();
     Serial.println("end config");
 }
+
+const char* Config::getOption(String name) {
+    UserOption* option = findOption(name);
+    if(option == NULL) return NULL;
+    return option->getValue();
+}
+
 
 
 UserOption* Config::findOption(String name) {
