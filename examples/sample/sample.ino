@@ -1,18 +1,10 @@
 
 
-#pragma once 
-
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiUdp.h>
-#include <EEPROM.h>
 #include "ESP8266ConfigurationWizard.hpp"
 
 
-WiFiUDP _udp;
-WiFiClient _wifiClient; 
 PubSubClient* _mqttClinet;
-ESP8266ConfigurationWizard _ESP8266ConfigurationWizard(_udp, _wifiClient);
+ESP8266ConfigurationWizard _ESP8266ConfigurationWizard;
 
 void setup() {
   //WiFi.begin("beom_unifi2.4", "20181028");
@@ -24,23 +16,17 @@ void setup() {
   config->addOption("Key","", false);
   config->addOption("Taste","", true);
 
-  Serial.println("printConfig");
-
-  config->printConfig();
-  Serial.println("printConfigEnd");
-
 
   _ESP8266ConfigurationWizard.setOnFilterOption(onFilterOption);
   _ESP8266ConfigurationWizard.setOnStatusCallback(onStatusCallback);
   // connection mode. If there is no value required for connection, it automatically switches to configuration mode.
-   _ESP8266ConfigurationWizard.connect();
    _mqttClinet = _ESP8266ConfigurationWizard.pubSubClient();
-   int day = _ESP8266ConfigurationWizard.getDay();
-   int hour = _ESP8266ConfigurationWizard.getHours();
-   int min = _ESP8266ConfigurationWizard.getMinutes();
-   int sec = _ESP8266ConfigurationWizard.getSeconds();
+   _ESP8266ConfigurationWizard.connect();
 
-  
+   
+  Serial.println("printConfig");
+  config->printConfig();
+  Serial.println("printConfigEnd");
    
   // Enter configuration mode.
   // _ESP8266ConfigurationWizard.startConfigurationMode();
@@ -48,7 +34,10 @@ void setup() {
 }
 
 void onStatusCallback(int status) {
-  if(status == WIFI_CONNECT_TRY) {
+  if(status == STATUS_CONFIGURATION) {
+      Serial.println("\n\nStart configuration mode");
+    }
+  else if(status == WIFI_CONNECT_TRY) {
     Serial.println("Try to connect to Wifi.");
   }
   else if(status == WIFI_ERROR) {
@@ -77,6 +66,14 @@ void onStatusCallback(int status) {
   }
   else if(status == STATUS_OK) {
     Serial.println("All connections are fine.");
+
+    int day = _ESP8266ConfigurationWizard.getDay();
+   int hour = _ESP8266ConfigurationWizard.getHours();
+   int min = _ESP8266ConfigurationWizard.getMinutes();
+   int sec = _ESP8266ConfigurationWizard.getSeconds();
+
+    //_mqttClinet->setCallback(callbackSubscribe);
+    //_mqttClinet->subscribe("topic");
   }
 
 }

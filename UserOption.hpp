@@ -22,6 +22,7 @@ class UserOption {
         }
 
         const char* getValue() {
+			if(_value.length() == 0) return _defaultValue.c_str();
             return _value.c_str();
         }
 

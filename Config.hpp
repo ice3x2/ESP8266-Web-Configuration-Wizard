@@ -1,4 +1,8 @@
-#pragma once 
+
+#ifndef CONFIG_WIZARD_CONFIG.HPP
+#define CONFIG_WIZARD_CONFIG.HPP
+
+
 #include "LinkedList.hpp"
 #include "UserOption.hpp"
 
@@ -59,8 +63,8 @@ class Config {
     void setMQTTPassword(String mqttPass);
     const char* getMQTTPassword();
     UserOption* addOption(String name, String defaultValue,bool isNull);
+	const char* getOption(String name);
     bool setOptionValue(String name, String value);
-    const char* getOption(String name);
     int getOptionCount() const;
     void beginOption() const;
     UserOption* nextOption() const;
@@ -74,7 +78,8 @@ class Config {
 
     void copy(const Config& conf);
     UserOption* findOption(String name);
-      
+	char* randomID(char* buffer, int length);
+	  
 
 };
 
@@ -92,7 +97,10 @@ Config::Config() : _ssid(""), _pass(""), _mqttAddress(""),_ntpServer("")   {
  
   _mqttAddress = "broker.hivemq.com"; // MQTT adderess
   _mqttPort = 1883; // MQTT port
-  _mqttClientID = "";
+  char buffer[24];
+  buffer[23] = '\0';
+  randomID(buffer, 23);
+  _mqttClientID = String(buffer);
   _mqttUser = "";
   _mqttPass = "";
 
@@ -107,7 +115,7 @@ Config::Config(const Config& conf) {
 }
 
 Config::~Config() {
-  Serial.println("~Config");
+  
   clearOptions();
   delete _userOptionList;
 }
@@ -225,33 +233,22 @@ const char* Config::getMQTTPassword() {
 }
 
 UserOption* Config::addOption(String name, String defaultValue,bool isNull) {
-  Serial.println("Config::addOption_1");
-  UserOption* userOption = findOption(name);
-  Serial.println("Config::addOption_2");
+  UserOption* userOption = findOption(name);  
   if(userOption == NULL) {
-    Serial.println("Config::addOption_3");
       userOption = new UserOption(name, defaultValue, isNull);
-      Serial.println("Config::addOption_4");
       _userOptionList->Append(userOption);
-      Serial.println("Config::addOption_5");
   } else {
-    Serial.println("Config::addOption_6");
     userOption->setDefaultValue(defaultValue);
-    Serial.println("Config::addOption_7");
     userOption->setIsNull(isNull);
-    Serial.println("Config::addOption_8");
+    
+	
   }
   return userOption;
 }
 
 bool Config::setOptionValue(String name, String value) {
   UserOption* option = findOption(name);
-  Serial.print(name);
-  Serial.print(": ");
-  Serial.println(value);
-  if(option == NULL) {
-    Serial.println("option is NULL");
-  }
+  
 
   if(option == NULL || (value.isEmpty() && !option->isNull()) ) {
     return false;
@@ -373,16 +370,30 @@ void Config::clearOptions() {
         delete userOption;
     }
     _userOptionList->Clear();
-    Serial.println("end config");
+    
+}
+
+char* Config::randomID(char* buffer, int length) {
+  randomSeed(millis());
+
+  for(int i = 0; i < length; ++i) {
+	int type = random(0,13); 
+	if(i == 0) {
+		buffer[i] = type % 2 == 0?  random('a','z' + 1) :  random('A','Z' + 1);
+	}
+	else if(type < 4) buffer[i] = random('a','z' + 1);
+	else if(type < 8) buffer[i] = random('A','Z' + 1);
+	else if(type < 12) buffer[i] = random('0','9' + 1);
+	else buffer[i] = random(0,2) == 1 ? '_' : '-';
+  }
+  return buffer;
 }
 
 const char* Config::getOption(String name) {
-    UserOption* option = findOption(name);
-    if(option == NULL) return NULL;
-    return option->getValue();
+	UserOption* option = findOption(name);
+	if(option == NULL) return NULL;
+	return option->getValue();
 }
-
-
 
 UserOption* Config::findOption(String name) {
   if(_userOptionList->getLength() == 0) return NULL;
@@ -396,3 +407,6 @@ UserOption* Config::findOption(String name) {
     return NULL;
 }
 
+
+
+#endif

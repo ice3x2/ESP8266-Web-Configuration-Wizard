@@ -1,11 +1,11 @@
-#pragma once 
+#ifndef ESPCONFIGURATIONWIZARD.HPP
+#define ESPCONFIGURATIONWIZARD.HPP
 
 
 #include <ESP8266WebServer.h>
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
 #include <WifiServer.h>
-#include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include <LittleFS.h>
 #include <NTPClient.h>
@@ -13,12 +13,14 @@
 #include "Resources.hpp"
 #include "LinkedList.hpp"
 
-// ArduinoJson >= 6.19.1 
 // PubSubClient >= 2.8.0
 
-#define CONFIG_FILENAME "/config002.json"
-#define OPTIONS_FILENAME "/options002.csv"
-#define OLD_OPTIONS_FILENAME "/options001.csv"
+#define ESP_CONFIGURATION_WIZARD_VERSION "0.9.0\0"
+
+#define CONFIG_FILENAME "/config.dat"
+
+#define VALUE_BUFFER_SIZE 512
+
 
 #define MQTT_RECONNECT_INTERVAL 3000
 #define MQTT_SOCKET_TIMEOUT 3000
@@ -26,7 +28,7 @@
 
 #define NTP_RECONNECT_INTERVAL 500
 
-#define CONFIG_FILE_SIZE 4096
+
 
 #define WIFI_TIMEOUT 60000 //ms
 
@@ -36,7 +38,11 @@
 #define MODE_RUN 2
 
 
+
 #define STATUS_PRE 100
+
+
+
 
 #define WIFI_CONNECT_TRY 1
 #define WIFI_ERROR -1
@@ -51,6 +57,8 @@
 #define MQTT_CONNECTED 30
 #define STATUS_OK 0
 
+#define STATUS_CONFIGURATION 7
+
 class ESP8266ConfigurationWizard {
 
   private :
@@ -58,8 +66,8 @@ class ESP8266ConfigurationWizard {
     WiFiUDP _udp;
     WiFiClient _wifiClient; 
     ESP8266WebServer* _webServer;
-    PubSubClient* _mqtt;
     NTPClient* _ntpClient;
+	PubSubClient _mqtt;
     Config _config;
     String _ipAddress = "0.0.0.0";
     uint16_t _wifiCount = 0;
@@ -77,11 +85,11 @@ class ESP8266ConfigurationWizard {
     status_callback _onStatusCallback = NULL;
 
     long _startWiFiConnectMillis;
-    bool _availableConfigFile;
+    
 
 
  public:
-    ESP8266ConfigurationWizard(WiFiUDP udp,WiFiClient client);
+    ESP8266ConfigurationWizard();
     void setOnFilterOption(option_filter filter);
     void setOnStatusCallback(status_callback callback);
     Config& getConfig();
@@ -91,7 +99,7 @@ class ESP8266ConfigurationWizard {
     bool availableWifi();
     bool availableNTP();
     bool availableMqtt();
-    void d);
+    void connect();
     void startConfigurationMode();
     bool isConfigurationMode();
     PubSubClient* pubSubClient();
@@ -143,8 +151,11 @@ class ESP8266ConfigurationWizard {
   void onHttpRequestCommit();
 
   bool saveConfig();
-  bool saveConfigOptions();
-  bool loadConfigOptions();
+  void writeLineInConfigFile(File* file,const char* value);
+  char* readLineInConfigFile(File* file,char* buffer);
+  
+  bool saveConfigOptions(File* file);
+  bool loadConfigOptions(File* file,char* buffer);
   
 
 };
@@ -154,12 +165,10 @@ class ESP8266ConfigurationWizard {
 
 
 
-ESP8266ConfigurationWizard::ESP8266ConfigurationWizard(WiFiUDP udp,WiFiClient client) : _udp(udp), _wifiClient(client),  _mqtt(NULL), _webServer(NULL), _ntpClient(NULL)
-,_availableConfigFile(false)
- {
-
-  //_availableConfigFile = loadConfig();
-  _mqtt = new PubSubClient(_wifiClient); 
+ESP8266ConfigurationWizard::ESP8266ConfigurationWizard() : _webServer(NULL), _ntpClient(NULL)
+{
+	_mqtt.setClient(_wifiClient);
+  
 }
 
 void ESP8266ConfigurationWizard::setOnFilterOption(option_filter filter) {
@@ -192,7 +201,7 @@ bool ESP8266ConfigurationWizard::availableNTP() {
 }
 
 bool ESP8266ConfigurationWizard::availableMqtt() {
-  return _mqtt != NULL && _mqtt->connected();
+  return _mqtt.connected();
 }
 
 bool ESP8266ConfigurationWizard::availableWifi() {
@@ -204,15 +213,16 @@ bool ESP8266ConfigurationWizard::availableWifi() {
 
 
 void ESP8266ConfigurationWizard::connect() {
-  loadConfig();
-  if(!_availableConfigFile) {
+  
+  if(!loadConfig()) {
     startConfigurationMode();
     return;
   }
+  
   releaseWebServer();
   _mode = MODE_RUN;
-  _mqtt->setSocketTimeout(MQTT_SOCKET_TIMEOUT);
-  _mqtt->setKeepAlive(MQTT_KEEPALIVE);
+  _mqtt.setSocketTimeout(MQTT_SOCKET_TIMEOUT);
+  _mqtt.setKeepAlive(MQTT_KEEPALIVE);
 
   setStatus(WIFI_CONNECT_TRY);
   connectWiFi();
@@ -225,6 +235,8 @@ void ESP8266ConfigurationWizard::connect() {
       return;
   } 
   setStatus(WIFI_CONNECTED);
+  
+  
   
   if(!availableNTP()) {
     setStatus(NTP_CONNECT_TRY);
@@ -253,6 +265,7 @@ void ESP8266ConfigurationWizard::connect() {
 
 void ESP8266ConfigurationWizard::startConfigurationMode() {
   _mode = MODE_CONFIGURATION;
+  setStatus(STATUS_CONFIGURATION);
   initConfigurationMode();
 }
 
@@ -261,61 +274,69 @@ bool ESP8266ConfigurationWizard::isConfigurationMode() {
 }
 
 PubSubClient* ESP8266ConfigurationWizard::pubSubClient() {
-    return _mqtt;
+    return &_mqtt;
 }
 
 void ESP8266ConfigurationWizard::loop() {
 
-  if(_mode == MODE_CONFIGURATION) {
-    _webServer->handleClient();
-    return;
-  }
-  if(_status == WIFI_CONNECT_TRY && !availableWifi()) {
-    if(millis() - _startWiFiConnectMillis < WIFI_TIMEOUT) {
-      return;
-    } else {
-      setStatus(WIFI_ERROR);
-    }    
-  } else if(!availableWifi()) {
-      setStatus(WIFI_CONNECT_TRY);
-      connectWiFi();
-      return;
-  }
-  if(_status == WIFI_CONNECT_TRY) {
-    setStatus(WIFI_CONNECTED);
-  }
+	if(_mode == MODE_CONFIGURATION) {
+		_webServer->handleClient();
+		return;
+	}
 
-  if(!availableNTP()) {
-      setStatus(NTP_CONNECT_TRY);
-      connectNTP(_config.getNTPServer(), _config.getTimeOffset(), (long)_config.getNTPUpdateInterval() * 60000L);
-      if(!availableNTP()) {
-        setStatus(NTP_ERROR);
-        return;
-      }
-  }
+	if(_status == WIFI_CONNECT_TRY && !availableWifi()) {
+		if(millis() - _startWiFiConnectMillis < WIFI_TIMEOUT) {
+		  return;
+		} else {
+		  setStatus(WIFI_ERROR);
+		}   	
+	} else if(!availableWifi()) {
+		setStatus(WIFI_CONNECT_TRY);
+		connectWiFi();
+		return;
+	}
 
-  if(_status == NTP_CONNECT_TRY) {
-    setStatus(NTP_CONNECTED);
-  }
-  
+	if(_status == WIFI_CONNECT_TRY) {
+		setStatus(WIFI_CONNECTED);
+	}
 
-  _ntpClient->update();
-  
-  if(!availableMqtt()) {
-      setStatus(MQTT_CONNECT_TRY);
-      connectMQTT();
-      if(!availableMqtt()) {
-        setStatus(MQTT_ERROR);
-        return;
-      }
-  }
 
-  if(_status == MQTT_CONNECT_TRY) {
-    setStatus(MQTT_CONNECTED);
-  }
 
-  _mqtt->loop();
-  
+	if(!availableNTP()) {
+	  setStatus(NTP_CONNECT_TRY);
+	  connectNTP(_config.getNTPServer(), _config.getTimeOffset(), (long)_config.getNTPUpdateInterval() * 60000L);
+	  if(!availableNTP()) {
+		setStatus(NTP_ERROR);
+		return;
+	  }
+	}
+
+
+	if(_status == NTP_CONNECT_TRY) {
+		setStatus(NTP_CONNECTED);
+	}
+
+
+	_ntpClient->update();
+
+
+	if(!availableMqtt()) {
+	  setStatus(MQTT_CONNECT_TRY);
+	  connectMQTT();
+	  if(!availableMqtt()) {
+		setStatus(MQTT_ERROR);
+		return;
+	  }
+	}
+
+
+	if(_status == MQTT_CONNECT_TRY) {
+	setStatus(MQTT_CONNECTED);
+	}
+
+	 if(_mqtt.connected()) {
+		_mqtt.loop();
+	 }
 }
 
 
@@ -368,31 +389,39 @@ bool ESP8266ConfigurationWizard::connectMQTT() {
     const char* user = _config.getMQTTUser();
     const char* password = _config.getMQTTPassword();
     
-    _mqtt->setServer(server,port);     
-    if(!_mqtt->connected()) {
-        
-        //Serial.print("connect mqtt: ");
-        //Serial.println(id);
-        //Serial.print("mqtt addr: ");
-        //Serial.println(_config.getMQTTAddress());
-        //Serial.print("mqtt port: ");
-        //Serial.println(_config.getMQTTPort());
-        //Serial.print("mqtt user: ");
-        //Serial.println(_config.getMQTTUser());
-        //Serial.print("mqtt password: ");
-        //Serial.println(_config.getMQTTPassword());           
-        //Serial.println(strlen(_config.getMQTTUser()));
-        
-        if(strlen(_config.getMQTTUser()) > 0 && (_mqtt->connect(id,user, password) || _mqtt->connected())) {
-              //Serial.println("mqtt connected");
-              return true;
-        } else if (_mqtt->connect(id) || _mqtt->connected()) {             
-            //Serial.println("mqtt connected");
+    _mqtt.setServer(server,port);     
+    if(!_mqtt.connected()) {
+        #ifdef _DEBUG_
+			Serial.print("connect mqtt: ");
+			Serial.println(id);
+			Serial.print("mqtt addr: ");
+			Serial.println(_config.getMQTTAddress());
+			Serial.print("mqtt port: ");
+			Serial.println(_config.getMQTTPort());
+			Serial.print("mqtt clinetID: ");
+			Serial.println(_config.getMQTTClientID());
+			Serial.print("mqtt user: ");
+			Serial.println(_config.getMQTTUser());
+			Serial.print("mqtt password: ");
+			Serial.println(_config.getMQTTPassword());           
+			Serial.println(strlen(_config.getMQTTUser()));
+        #endif
+		
+        if(strlen(_config.getMQTTUser()) > 0 && (_mqtt.connect(id,user, password) || _mqtt.connected())) {
+            #ifdef _DEBUG_ 
+			Serial.println("mqtt connected(user)");
+			#endif
+            return true;
+        } else if (_mqtt.connect(id) || _mqtt.connected()) {             
+			#ifdef _DEBUG_
+			Serial.println("mqtt connected(id)");
+			#endif
             return true;
         }
         else {
-          //Serial.println(_mqtt->state());
-          //Serial.println("failed connect mqtt");
+          #ifdef _DEBUG_ 
+          Serial.println("failed connect mqtt");
+		  #endif
           return false;
         }
     }
@@ -412,9 +441,7 @@ bool ESP8266ConfigurationWizard::connectMQTT() {
     _ntpClient = new NTPClient(_udp, ntpServer, timeOffset, interval);
     
     _ntpClient->begin();
-    //Serial.println(ntpServer);
-    //Serial.println(timeOffset);
-    //Serial.println(interval);
+    
     
     long startConnectTime = millis();
     _ntpClient->update();
@@ -424,8 +451,7 @@ bool ESP8266ConfigurationWizard::connectMQTT() {
       _ntpClient->update();
     }
     
-    //Serial.println("");
-    //Serial.println(_ntpClient->getEpochTime());
+    
     return _ntpClient->isTimeSet();
   
   }
@@ -441,18 +467,25 @@ bool ESP8266ConfigurationWizard::connectMQTT() {
   }
 
   void ESP8266ConfigurationWizard::initConfigurationMode()  {
+	#ifdef _DEBUG_ 
+	Serial.println("initConfigurationMode()");
+	#endif
+	if(_ntpClient != NULL) {
+        _ntpClient->end();
+        delete _ntpClient;
+        _ntpClient = NULL;
+    }
     releaseWebServer();
     _webServer = new ESP8266WebServer(80);
-    
-
-
 
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(_config.getAPName(), "");
     
     IPAddress myIP = WiFi.softAPIP();
-    //Serial.print("AP IP address: ");
-    //Serial.println(myIP);
+	#ifdef _DEBUG_ 
+    Serial.print("AP IP address: ");
+    Serial.println(myIP);
+	#endif
 
     
     _webServer->on("/", HTTP_GET, [&]{ onHttpRequestWifiHtml(); });
@@ -495,7 +528,7 @@ bool ESP8266ConfigurationWizard::connectMQTT() {
     _webServer->on("/api/commit", HTTP_GET, [&]{ onHttpRequestCommit(); });
     
     _webServer->begin();
-    //Serial.println("Setup mode started.");
+    
 }
 
 
@@ -530,9 +563,6 @@ void ESP8266ConfigurationWizard::sendBadRequest()
   void ESP8266ConfigurationWizard::onHttpRequestScanWifiCount() {
     WiFi.mode(WIFI_AP_STA);
     int n = WiFi.scanNetworks();
-    //Serial.println("wifiCount : ");
-    //Serial.print(n);
-    //Serial.println();
     _wifiCount = n;
     String result = "";
     result.concat("{\"count\":");
@@ -559,7 +589,6 @@ void ESP8266ConfigurationWizard::onHttpRequestScanWifiItem() {
     result.concat(String(WiFi.RSSI(count)));
     result.concat("}");
 
-    //Serial.println(result);
     
     _webServer->sendHeader("Access-Control-Allow-Origin", "*");
     _webServer->send(200, "application/json", result);
@@ -664,10 +693,11 @@ void ESP8266ConfigurationWizard::onHttpRequestWifiConnect()  {
   
   String ssid = _webServer->arg("ssid");
   String password = _webServer->arg("password");
+  #ifdef _DEBUG_ 
   Serial.print("ssid : ");
   Serial.println(ssid);
   Serial.print("password : ");
-  //Serial.println(password);
+  #endif
   
   if (ssid.length() <= 0) {
       sendBadRequest();
@@ -676,20 +706,19 @@ void ESP8266ConfigurationWizard::onHttpRequestWifiConnect()  {
   
   if(password.length() <= 0)  WiFi.begin(ssid);
   else WiFi.begin(ssid, password);
-  //Serial.print("Begin wifi : ");
+  
   
   long current = millis();
   delay(1000);
   while (WiFi.status() != WL_CONNECTED) {
       delay(1);
       if(millis() - current > WIFI_TIMEOUT) {       
-        //Serial.print("Begin wifi - fatal ");
+  
         _webServer->sendHeader("Access-Control-Allow-Origin", "*");
         _webServer->send(400, "application/json", "{\"success\":false}");
         return;
       }
   }
-  //Serial.print("Begin wifi - success");
   _config.setWiFiSSID(ssid);
   _config.setWiFiPassword(password);
   
@@ -710,25 +739,16 @@ void ESP8266ConfigurationWizard::onHttpRequestMqttConnect()  {
     String clientID = _webServer->arg("mid");
 
     int port = portStr.toInt();
-    //Serial.println(server);
-    //Serial.println(port);
     bool connected = false; 
     if(port <= 0) port = 1883;
 
 
-    //Serial.print("user: ");
-    //Serial.print(user);
-    //Serial.println(".");
-    //Serial.print("pass: ");
-    //Serial.print(pass);
-    //Serial.println(".");
-
-    if(_mqtt->connected()) {
-      _mqtt->disconnect();
+    if(_mqtt.connected()) {
+      _mqtt.disconnect();
     }
-    _mqtt->setServer(server.c_str(), port);
+    _mqtt.setServer(server.c_str(), port);
     if (user.isEmpty() && pass.isEmpty() ) {
-      if(_mqtt->connect(clientID.c_str())) {
+      if(_mqtt.connect(clientID.c_str())) {
         connected = true;
         _config.setMQTTddress(server);
         _config.setMQTTPort(port);
@@ -737,7 +757,7 @@ void ESP8266ConfigurationWizard::onHttpRequestMqttConnect()  {
         _config.setMQTTPassword("");
       }
     }
-    else if(_mqtt->connect(clientID.c_str(), user.c_str(), pass.c_str())) {
+    else if(_mqtt.connect(clientID.c_str(), user.c_str(), pass.c_str())) {
       connected = true;
       _config.setMQTTddress(server);
       _config.setMQTTPort(port);
@@ -834,198 +854,233 @@ void ESP8266ConfigurationWizard::onHttpRequestGetOption() {
 
 
 bool ESP8266ConfigurationWizard::saveConfig() {
-      if(!LittleFS.begin()){
-        return false;
-      }
-       
+		if(!LittleFS.begin()){
+			return false;
+		}
 
-      char NTPUpdateIntervalBuf[16];
-      char offsetBuf[16];
-      char mqttPortBuf[16];
-      memset(NTPUpdateIntervalBuf, '\0', 16);
-      memset(offsetBuf, '\0', 16);
-      memset(mqttPortBuf, '\0', 16);
-      ltoa(_config.getNTPUpdateInterval(), NTPUpdateIntervalBuf,10);
-      ltoa(_config.getTimeOffset(), offsetBuf,10);
-      ltoa(_config.getMQTTPort(), mqttPortBuf,10);
+		char NTPUpdateIntervalBuf[16];
+		char offsetBuf[16];
+		char mqttPortBuf[16];
+		memset(NTPUpdateIntervalBuf, '\0', 16);
+		memset(offsetBuf, '\0', 16);
+		memset(mqttPortBuf, '\0', 16);
+		ltoa(_config.getNTPUpdateInterval(), NTPUpdateIntervalBuf,10);
+		ltoa(_config.getTimeOffset(), offsetBuf,10);
+		ltoa(_config.getMQTTPort(), mqttPortBuf,10);
 
-       DynamicJsonDocument doc(CONFIG_FILE_SIZE);        
-       doc["version"] = _config.version();
-       doc["deviceName"] = _config.getDeviceName();
-       doc["wifi"]["ssid"] = _config.getWiFiSSID();
-       doc["wifi"]["password"] = _config.getWiFiPassword();
 
-       doc["ntp"]["address"] = _config.getNTPServer();
+		LittleFS.remove("/config002.dat");
+		LittleFS.remove(CONFIG_FILENAME);
+		File configFile = LittleFS.open(CONFIG_FILENAME, "w");
+		if (!configFile) {
+			#ifdef _DEBUG_ 
+			Serial.println("Failed to open config file for writing");
+			#endif
+			return false;
+		}	  
+		
+		writeLineInConfigFile(&configFile,ESP_CONFIGURATION_WIZARD_VERSION);
 
-       
-       doc["ntp"]["interval"] = NTPUpdateIntervalBuf;
-       doc["ntp"]["offset"] = offsetBuf;
+		writeLineInConfigFile(&configFile,_config.version());	  
+		writeLineInConfigFile(&configFile,_config.getDeviceName());
+		writeLineInConfigFile(&configFile,_config.getWiFiSSID());	  
+		writeLineInConfigFile(&configFile,_config.getWiFiPassword());	  
+		writeLineInConfigFile(&configFile,_config.getNTPServer());	  
+		writeLineInConfigFile(&configFile,NTPUpdateIntervalBuf);	  
+		writeLineInConfigFile(&configFile,offsetBuf);	  
+		writeLineInConfigFile(&configFile,_config.getMQTTAddress());	  
+		writeLineInConfigFile(&configFile,mqttPortBuf);	  
+		writeLineInConfigFile(&configFile,_config.getMQTTClientID());	  
+		writeLineInConfigFile(&configFile,_config.getMQTTUser());	  
+		writeLineInConfigFile(&configFile,_config.getMQTTPassword());	
 
-       doc["mqtt"]["address"] = _config.getMQTTAddress();
-       doc["mqtt"]["port"] = mqttPortBuf;
-       doc["mqtt"]["clientID"] = _config.getMQTTClientID();
-       doc["mqtt"]["user"] = _config.getMQTTUser();
-       doc["mqtt"]["password"] = _config.getMQTTPassword();
+		if(!saveConfigOptions(&configFile)){
+			configFile.close();
+			return false;
+		}
 
-       LittleFS.remove("/config001.json");
-       LittleFS.remove(CONFIG_FILENAME);
-       
-       File configFile = LittleFS.open(CONFIG_FILENAME, "w");
-       if (!configFile) {
-         Serial.println("Failed to open config file for writing");
-         LittleFS.end();
-         return false;
-       }
-       serializeJson(doc, configFile);
-       configFile.close();
+		configFile.close();
 
-       _availableConfigFile = true;
-       saveConfigOptions();
-       LittleFS.end();
-       return true;
+
+		return true;
     }
+	
+	
+	bool ESP8266ConfigurationWizard::saveConfigOptions(File* file) {    
+		int optionCount=_config.getOptionCount();
+		char optionCountBuffer[16];
+		memset(optionCountBuffer, '\0', 16);
+		itoa(optionCount, optionCountBuffer,10);
+		writeLineInConfigFile(file,optionCountBuffer);
 
-
-    bool ESP8266ConfigurationWizard::saveConfigOptions() {
-      
-	Serial.println("sAVE");
-      LittleFS.remove(OLD_OPTIONS_FILENAME);
-      LittleFS.remove(OPTIONS_FILENAME);
-      File optionsFile = LittleFS.open(OPTIONS_FILENAME, "w");
-      if (!optionsFile) {
-        Serial.println("Failed to open config file for writing");
-        return false;
-      }
-      _config.beginOption();
-      for(int i = 0, n = _config.getOptionCount(); i < n; ++i) {
-        UserOption* option = _config.nextOption();
-        String name = option->getName();
-        String value = option->getValue();
-        optionsFile.write(name.c_str(), name.length());
-        optionsFile.write("\n",1);
-        optionsFile.write(value.c_str(),  value.length());
-        optionsFile.write("\n",1);
-      }
-      Serial.print("option file size: ");
-      Serial.println(optionsFile.size());
-      optionsFile.close();
-      return true;
+		_config.beginOption();
+		for(int i = 0, n = optionCount; i < n; ++i) {
+			UserOption* option = _config.nextOption();
+			String name = option->getName();
+			String value = option->getValue();
+			writeLineInConfigFile(file,name.c_str());
+			writeLineInConfigFile(file,value.c_str());
+		}
+		return true;
     }
-
-
-    bool ESP8266ConfigurationWizard::loadConfigOptions() {
-      /*if(!LittleFS.begin()){
-         Serial.println("An Error has occurred while mounting LittleFS");
-         return false;
-      }*/
-      Serial.println("Load options file");
-      Serial.println(OPTIONS_FILENAME);
-      File optionsFile = LittleFS.open(OPTIONS_FILENAME, "r");
-      if (!optionsFile) {
-        Serial.println("Failed to open options file");
-        //LittleFS.end();
-        return false;
-      }
-
-      Serial.print("\nload option file size: ");
-      Serial.println(optionsFile.size());
-
-      //_config.clearOptions();
-      char nameBuffer[512];      
-      char valueBuffer[512];      
-      memset(nameBuffer, '\0', 512);
-      memset(valueBuffer, '\0', 512);
-      int cnt = 0;
-      bool isReadName = true; 
-      //_config.beginOption();
-      while(optionsFile.available()){
-        char ch = optionsFile.read();
-        if(ch != '\n') {
-          if(isReadName == true) nameBuffer[cnt++] = ch;
-          else valueBuffer[cnt++] = ch;
-        }
-        else if(ch == '\n') {
-          if(!isReadName) {
-           _config.addOption(String(nameBuffer), "", true);
-           _config.setOptionValue(String(nameBuffer), String(valueBuffer));
-           //Serial.print(String(nameBuffer));
-           //Serial.print(':');
-           //Serial.println(String(valueBuffer));
-           memset(nameBuffer, '\0', 512);
-           memset(valueBuffer, '\0', 512);
-          }
-          
-          cnt = 0;
-          isReadName = !isReadName;
-        }
-      }
-      Serial.println("CloseCloseCloseCloseClose");
-      optionsFile.close();
-      Serial.println("endendendend");
-      //LittleFS.end();
-      Serial.println("endendendend...OK!");
-
-    }
-    
-                
+	
+	
+	void ESP8266ConfigurationWizard::writeLineInConfigFile(File* file, const char* value) {
+		file->write(value, strlen(value));
+		file->write("\n", 1);
+	}
+	
+	
+	 
     bool ESP8266ConfigurationWizard::loadConfig() {
-      if(!LittleFS.begin()){
-         Serial.println("An Error has occurred while mounting LittleFS");
-         return false;
+		if(!LittleFS.begin()){
+			return false;
+		}
+
+		char buffer[VALUE_BUFFER_SIZE];      
+		memset(buffer, '\0', VALUE_BUFFER_SIZE);
+		#ifdef _DEBUG_ 
+		Serial.println("Load file");
+		Serial.println(CONFIG_FILENAME);
+		#endif
+		File configFile = LittleFS.open(CONFIG_FILENAME, "r");
+		
+
+		if (!configFile) {
+			#ifdef _DEBUG_ 
+			Serial.println("Failed to open config file");
+			#endif
+
+			return false;
+		}
+		char* value = NULL;
+		// 라인이 null 값이면 정리하고 false 를 반홚야함.
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		if(strcmp(value, ESP_CONFIGURATION_WIZARD_VERSION) != 0) {
+			configFile.close();
+			return false;
+		}
+		
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setVersion(String(value));
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setDeviceName(String(value));
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setWiFiSSID(String(value));
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setWiFiPassword(String(value));
+
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setNTPServer(String(value));
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setNTPUpdateInterval(atol(value));
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setTimeOffset(atol(value));
+
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setMQTTddress( String(value) );
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setMQTTPort(atoi(  value ));
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setMQTTClientID(  String(value) );
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setMQTTUser( String(value)  );
+		if((value = readLineInConfigFile(&configFile, buffer)) == NULL) {
+			configFile.close();
+			return false;
+		}
+		_config.setMQTTPassword( String(value) );
+
+
+		if(!loadConfigOptions(&configFile, buffer)) {
+			configFile.close();
+		   return false;
+		}
+
+		configFile.close();
+
+		return true;
+    }
+	
+	bool ESP8266ConfigurationWizard::loadConfigOptions(File *file, char* buffer) {
+		
+	  bool isReadName = true; 
+	  
+	  char* value = NULL;
+   	  // 라인이 null 값이면 정리하고 false 를 반홚야함.
+	  if((value = readLineInConfigFile(file, buffer)) == NULL) return false;
+	  int optionCount = atoi(  value );
+	  
+      for(int i = 0; i < optionCount; ++i) {
+		if((value = readLineInConfigFile(file, buffer)) == NULL) return false;
+		String name(value);
+		if((value = readLineInConfigFile(file, buffer)) == NULL) return false;		
+		String optionValue(value);
+		#ifdef _DEBUG_
+		Serial.print(name);
+		Serial.print(":");
+		Serial.println(optionValue);
+		#endif
+		_config.setOptionValue(name, optionValue);
       }
-      Serial.println("Load file");
-      Serial.println(CONFIG_FILENAME);
-	  File configFile = LittleFS.open(CONFIG_FILENAME, "r");
-	  if (!configFile) {
-        Serial.println("Failed to open config file");
-        _availableConfigFile = false;
-        LittleFS.end();
-        return false;
-      }
-	  size_t size = configFile.size();
-	  if (size > CONFIG_FILE_SIZE) {
-        Serial.println("Config file size is too large");
-        _availableConfigFile = false;
-        LittleFS.end();
-        return false;
-      }
-      //std::unique_ptr<char[]> buf(new char[size]);
-      //configFile.readBytes(buf.get(), size);
+	  #ifdef _DEBUG_
+      Serial.println("loadConfigOptions()...OK!");
+	  #endif
+	  return true;
 
-		Serial.println("Load file -5");
-      DynamicJsonDocument doc(CONFIG_FILE_SIZE);
-
-      //Serial.println(buf.get());
-      
-
-      auto error = deserializeJson(doc, configFile);
-      if (error) {
-        Serial.println("Failed to parse config file");
-        return false;
-      }
-
-       _config.setVersion(doc["version"]);
-       _config.setDeviceName(doc["deviceName"]);
-       _config.setWiFiSSID(doc["wifi"]["ssid"]);
-       _config.setWiFiPassword(doc["wifi"]["password"]);
-
-       _config.setNTPServer(doc["ntp"]["address"]);
-       _config.setNTPUpdateInterval(atol(doc["ntp"]["interval"]) );
-       _config.setTimeOffset(atol(doc["ntp"]["offset"]));
-
-       _config.setMQTTddress( doc["mqtt"]["address"] );
-       _config.setMQTTPort(atoi(  doc["mqtt"]["port"] ));
-       _config.setMQTTClientID(  doc["mqtt"]["clientID"] );
-       _config.setMQTTUser( doc["mqtt"]["user"]  );
-       _config.setMQTTPassword( doc["mqtt"]["password"] );
-
-
-       _config.printConfig();
-
-       configFile.close();
-      _availableConfigFile = true;
-      loadConfigOptions();
-      LittleFS.end();
-      return true;
     }
 
+	char* ESP8266ConfigurationWizard::readLineInConfigFile(File* file, char* buffer) {
+		memset(buffer, '\0', VALUE_BUFFER_SIZE);
+		int cnt = 0;
+		while(file->available()){
+			char ch = file->read();
+			if(ch != '\n') {
+			  buffer[cnt++] = ch;
+			} else {				
+			  return buffer;
+			}
+		}
+		return NULL;
+	}
+
+
+    
+    
+#endif
