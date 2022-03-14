@@ -920,7 +920,7 @@ let FinishView = new function() {
 			console.log(data);
 			_tag += `<div class='info-line'><span class="config-name">Address :</span><span class="config-value">${data.url}</span></div>`;
 			_tag += `<div class='info-line'><span class="config-name">Port :</span><span class="config-value">${data.port}</span></div>`;
-			_tag += `<div class='info-line'><span class="config-name">Client ID :</span><span class="config-value">${data.port}</span></div>`;
+			_tag += `<div class='info-line'><span class="config-name">Client ID :</span><span class="config-value">${data.mid}</span></div>`;
 			if(data.muser != '') {
 				_tag += `<div class='info-line'><span class="config-name">User :</span><span class="config-value">${data.muser}</span></div>`;
 			}
