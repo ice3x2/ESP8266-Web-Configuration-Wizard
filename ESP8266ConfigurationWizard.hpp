@@ -255,10 +255,9 @@ void ESP8266ConfigurationWizard::connect() {
       setStatus(MQTT_ERROR);
       return;
     }
+	delay(100);
   }
-  setStatus(MQTT_CONNECTED);
-  
-
+  setStatus(MQTT_CONNECTED); 
   setStatus(STATUS_OK);
   
 }
@@ -329,9 +328,8 @@ void ESP8266ConfigurationWizard::loop() {
 	  }
 	}
 
-
 	if(_status == MQTT_CONNECT_TRY) {
-	setStatus(MQTT_CONNECTED);
+		setStatus(MQTT_CONNECTED);
 	}
 
 	 if(_mqtt.connected()) {
