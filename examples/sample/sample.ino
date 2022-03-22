@@ -6,6 +6,9 @@
 PubSubClient* _mqttClinet;
 ESP8266ConfigurationWizard _ESP8266ConfigurationWizard;
 
+const char* onFilterOption(const char* name, const char* value);
+void onStatusCallback(int status); 
+  
 void setup() {
   
 
