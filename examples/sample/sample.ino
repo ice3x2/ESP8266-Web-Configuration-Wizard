@@ -7,7 +7,7 @@ PubSubClient* _mqttClinet;
 ESP8266ConfigurationWizard _ESP8266ConfigurationWizard;
 
 void setup() {
-  //WiFi.begin("beom_unifi2.4", "20181028");
+  
 
   Serial.begin(57600);
   
