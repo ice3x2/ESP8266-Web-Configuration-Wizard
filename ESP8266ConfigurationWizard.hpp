@@ -1,6 +1,7 @@
 #ifndef ESPCONFIGURATIONWIZARD.HPP
 #define ESPCONFIGURATIONWIZARD.HPP
 
+#define _DEBUG_
 
 #include <ESP8266WebServer.h>
 #include <WiFiClient.h>
@@ -22,9 +23,9 @@
 #define VALUE_BUFFER_SIZE 512
 
 
-#define MQTT_RECONNECT_INTERVAL 3000
-#define MQTT_SOCKET_TIMEOUT 3000
-#define MQTT_KEPP_ALIVE 1000
+#define MQTT_RECONNECT_INTERVAL 5000
+#define MQTT_SOCKET_TIMEOUT 5
+#define MQTT_KEPP_ALIVE 5
 
 #define NTP_RECONNECT_INTERVAL 500
 
@@ -59,6 +60,7 @@
 
 #define STATUS_CONFIGURATION 7
 
+
 class ESP8266ConfigurationWizard {
 
   private :
@@ -85,6 +87,7 @@ class ESP8266ConfigurationWizard {
     status_callback _onStatusCallback = NULL;
 
     long _startWiFiConnectMillis;
+	unsigned long _lastRetried = 0;
     
 
 
@@ -117,6 +120,7 @@ class ESP8266ConfigurationWizard {
   void setStatus(int status);
   void connectWiFi();
   bool connectMQTT();
+  
   bool connectNTP(const char* ntpServer,long timeOffset, unsigned long interval );
   void releaseWebServer();
   
@@ -288,6 +292,7 @@ void ESP8266ConfigurationWizard::loop() {
 		  return;
 		} else {
 		  setStatus(WIFI_ERROR);
+		  return;
 		}   	
 	} else if(!availableWifi()) {
 		setStatus(WIFI_CONNECT_TRY);
@@ -304,6 +309,7 @@ void ESP8266ConfigurationWizard::loop() {
 	if(!availableNTP()) {
 	  setStatus(NTP_CONNECT_TRY);
 	  connectNTP(_config.getNTPServer(), _config.getTimeOffset(), (long)_config.getNTPUpdateInterval() * 60000L);
+	  delay(1000);
 	  if(!availableNTP()) {
 		setStatus(NTP_ERROR);
 		return;
@@ -319,8 +325,9 @@ void ESP8266ConfigurationWizard::loop() {
 	_ntpClient->update();
 
 
-	if(!availableMqtt()) {
+	if(!availableMqtt() && (_lastRetried == 0 || millis() -  _lastRetried >= MQTT_RECONNECT_INTERVAL)) {
 	  setStatus(MQTT_CONNECT_TRY);
+	  _lastRetried = millis();
 	  connectMQTT();
 	  if(!availableMqtt()) {
 		setStatus(MQTT_ERROR);
@@ -379,6 +386,7 @@ void ESP8266ConfigurationWizard::connectWiFi() {
     WiFi.mode(WIFI_STA);
     WiFi.begin(_config.getWiFiSSID(), _config.getWiFiPassword());
 }
+
 
 bool ESP8266ConfigurationWizard::connectMQTT() {      
     const char* server = _config.getMQTTAddress();
