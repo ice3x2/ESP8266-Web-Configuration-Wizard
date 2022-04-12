@@ -1,3 +1,7 @@
+# Deprecated 
+  - 아래 프로젝트를 사용하세요. 이제 ESP32에서도 사용할 수 있습니다. 
+  - https://github.com/ice3x2/ESP-Web-Configuration-Wizard
+
 # ESP8266 Web Configuration Wizard
  웹을 통해 ESP8266의 WiFi 연결, NTP, MQTT 및 옵션을 구성할 수 있는 마법사 도구입니다.
  This is a wizard tool that allows you to configure the ESP8266's WiFi connection, NTP, MQTT, and Options via web.
